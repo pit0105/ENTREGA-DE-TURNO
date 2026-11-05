@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Cambio de Turno - Mantenimiento Planta</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for modern feel */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            body {
+                background: white;
+            }
+            .print-container {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Header Principal -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-brand-600 rounded-lg text-white">
+                    <i class="fa-solid fa-industry text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">PlantaIndustrial Pro</h1>
+                    <p class="text-xs text-slate-400">Sistema Digital de Cambio de Turno</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span id="liveClock" class="hidden sm:inline-block text-xs font-mono bg-slate-800 px-3 py-1.5 rounded-md text-slate-300 border border-slate-700">
+                    --:--:--
+                </span>
+                <button onclick="configModal.showModal()" class="text-slate-300 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition" title="Configurar Correos de Destino">
+                    <i class="fa-solid fa-gear text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Modal Configuración Destinatarios -->
+    <dialog id="configModal" class="rounded-xl shadow-2xl p-0 w-full max-w-md backdrop:bg-slate-900/50">
+        <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+            <h3 class="font-semibold text-lg flex items-center gap-2">
+                <i class="fa-solid fa-envelope-open-text text-brand-500"></i> Destinatarios de Reportes
+            </h3>
+            <button onclick="configModal.close()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="p-6 space-y-4 bg-white text-slate-800">
+            <p class="text-xs text-slate-500">Establece las direcciones de correo a las que se enviará automáticamente el reporte de turno.</p>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Correo Jefe de Mantenimiento</label>
+                <input type="email" id="cfgEmailJefe" value="jefe.mantenimiento@planta.com" class="w-full text-sm border-slate-300 rounded-lg p-2.5 border focus:ring-2 focus:ring-brand-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Correo Gerencia de Operaciones</label>
+                <input type="email" id="cfgEmailGerencia" value="gerencia.planta@planta.com" class="w-full text-sm border-slate-300 rounded-lg p-2.5 border focus:ring-2 focus:ring-brand-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Correo Supervisores (separados por coma)</label>
+                <input type="text" id="cfgEmailSupervisores" value="supervisor.turno@planta.com" class="w-full text-sm border-slate-300 rounded-lg p-2.5 border focus:ring-2 focus:ring-brand-500 outline-none">
+            </div>
+            <div class="pt-2 flex justify-end gap-2">
+                <button onclick="configModal.close()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200">Guardar</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Toast / Alertas Flotantes -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700 pointer-events-none">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-green-400 text-lg"></i>
+        <span id="toastMsg" class="text-sm font-medium">Notificación</span>
+    </div>
+
+    <!-- Layout Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Formulario (Lado Izquierdo) -->
+        <section class="lg:col-span-7 space-y-6 no-print">
+
+            <!-- 1. Encabezado e Información del Turno -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center gap-2 mb-4 text-brand-700 border-b pb-3 border-slate-100">
+                    <i class="fa-solid fa-id-card text-lg"></i>
+                    <h2 class="font-bold text-base uppercase tracking-wider">1. Datos del Técnico y Turno</h2>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre Técnico / Operador *</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-3 top-3 text-slate-400 text-sm"></i>
+                            <input type="text" id="techName" placeholder="Ej. Carlos Mendoza" class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Turno *</label>
+                        <select id="shiftType" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-white">
+                            <option value="Mañana (06:00 - 14:00)">🌅 Mañana (06:00 - 14:00)</option>
+                            <option value="Tarde (14:00 - 22:00)">☀️ Tarde (14:00 - 22:00)</option>
+                            <option value="Noche (22:00 - 06:00)">🌙 Noche (22:00 - 06:00)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Planta / Área / Línea *</label>
+                        <select id="plantArea" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-white">
+                            <option value="Línea de Empaque 01">Línea de Empaque 01</option>
+                            <option value="Línea de Proceso y Mezcla">Línea de Proceso y Mezcla</option>
+                            <option value="Servicios Generales (Calderas/Compresores)">Servicios Generales (Calderas/Compresores)</option>
+                            <option value="Calidad y Tratamiento de Agua">Calidad y Tratamiento de Agua</option>
+                            <option value="Taller Central de Mantenimiento">Taller Central de Mantenimiento</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Fecha del Reporte</label>
+                        <input type="date" id="reportDate" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Resumen General del Turno -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center gap-2 mb-4 text-brand-700 border-b pb-3 border-slate-100">
+                    <i class="fa-solid fa-align-left text-lg"></i>
+                    <h2 class="font-bold text-base uppercase tracking-wider">2. Resumen General del Turno</h2>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Visión global de lo ocurrido durante la jornada</label>
+                    <textarea id="shiftSummary" rows="3" placeholder="Ej. Turno transcurrió sin novedades críticas. Se ejecutaron mantenimientos preventivos programados en envasadora 2 y atención a falla menor en cinta transportadora." class="w-full p-3 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition"></textarea>
+                </div>
+            </div>
+
+            <!-- 3. Intervenciones de Mantenimiento (Múltiples / Dinámicas) -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center justify-between border-b pb-3 border-slate-100 mb-4">
+                    <div class="flex items-center gap-2 text-brand-700">
+                        <i class="fa-solid fa-wrench text-lg"></i>
+                        <h2 class="font-bold text-base uppercase tracking-wider">3. Novedades e Intervenciones</h2>
+                    </div>
+                    <span id="interventionCounter" class="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-full">0 Registradas</span>
+                </div>
+
+                <!-- Formulario de Entrada de Novedad -->
+                <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3 mb-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Equipo / Máquina</label>
+                            <input type="text" id="itemEquipment" placeholder="Ej. Compresor de Aire #2" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Tipo de Trabajo</label>
+                            <select id="itemType" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                                <option value="Correctivo (Falla)">🛠️ Correctivo (Falla)</option>
+                                <option value="Preventivo (Programado)">📅 Preventivo (Programado)</option>
+                                <option value="Mejora / Ajuste">💡 Mejora / Ajuste</option>
+                                <option value="Inspección Rutinaria">🔍 Inspección Rutinaria</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Estado del Equipo</label>
+                            <select id="itemStatus" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                                <option value="Operativo">🟢 Operativo</option>
+                                <option value="En Pruebas">🟡 En Pruebas</option>
+                                <option value="Detenido">🔴 Detenido</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">N° Orden / Solped (Opcional)</label>
+                            <input type="text" id="itemOrder" placeholder="Ej. OT-8492" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Tiempo de Paro (Horas)</label>
+                            <input type="number" id="itemDowntime" step="0.5" min="0" placeholder="0.0" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Descripción / Observaciones</label>
+                        <input type="text" id="itemDesc" placeholder="Detalle técnico de la intervención realizada..." class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+
+                    <button type="button" onclick="addIntervention()" class="w-full py-2 bg-brand-600 text-white rounded-lg text-sm font-semibold hover:bg-brand-700 transition flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Agregar Intervención
+                    </button>
+                </div>
+
+                <!-- Lista de Intervenciones -->
+                <div id="interventionsList" class="space-y-2">
+                    <p class="text-xs text-slate-400 text-center py-4 italic border border-dashed rounded-lg">No hay intervenciones registradas. Utiliza el formulario superior para añadir una.</p>
+                </div>
+            </div>
+
+            <!-- 4. Indicadores y Servicios de Planta -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center gap-2 mb-4 text-brand-700 border-b pb-3 border-slate-100">
+                    <i class="fa-solid fa-gauge-high text-lg"></i>
+                    <h2 class="font-bold text-base uppercase tracking-wider">4. Consumos e Indicadores de Planta</h2>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <span class="text-xs text-slate-500 block font-medium">⚡ Energía (kWh)</span>
+                        <input type="number" id="meterPower" placeholder="0000" class="w-full mt-1 px-2 py-1 text-sm border border-slate-300 rounded font-mono">
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <span class="text-xs text-slate-500 block font-medium">💧 Agua (m³)</span>
+                        <input type="number" id="meterWater" placeholder="0000" class="w-full mt-1 px-2 py-1 text-sm border border-slate-300 rounded font-mono">
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <span class="text-xs text-slate-500 block font-medium">🔥 Gas / Vapor (PSI)</span>
+                        <input type="number" id="meterSteam" placeholder="0000" class="w-full mt-1 px-2 py-1 text-sm border border-slate-300 rounded font-mono">
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <span class="text-xs text-slate-500 block font-medium">⏱ Total Paro (Hrs)</span>
+                        <input type="number" id="meterDowntimeTotal" placeholder="0.0" readonly class="w-full mt-1 px-2 py-1 text-sm border border-slate-200 bg-slate-100 text-slate-600 rounded font-mono font-bold">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Pendientes para el Siguiente Turno -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center gap-2 mb-4 text-brand-700 border-b pb-3 border-slate-100">
+                    <i class="fa-solid fa-clipboard-list text-lg"></i>
+                    <h2 class="font-bold text-base uppercase tracking-wider">5. Pendientes / Entregas de Turno</h2>
+                </div>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="pendingInput" placeholder="Añadir tarea o asunto a seguimiento por el siguiente turno..." class="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500">
+                    <button onclick="addPendingTask()" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-semibold hover:bg-slate-900 transition">
+                        <i class="fa-solid fa-plus sm:mr-1"></i> <span class="hidden sm:inline">Agregar</span>
+                    </button>
+                </div>
+                <ul id="pendingTasksList" class="space-y-2">
+                    <li class="text-xs text-slate-400 text-center py-3 italic border border-dashed rounded-lg">Sin tareas pendientes registradas para el turno entrante.</li>
+                </ul>
+            </div>
+
+        </section>
+
+        <!-- Vista Previa e Informe Ejecutivo (Lado Derecho) -->
+        <section class="lg:col-span-5 space-y-6">
+
+            <!-- Panel de Acciones Rapidas (Sticky) -->
+            <div class="bg-slate-900 text-white rounded-xl p-5 shadow-lg space-y-3 no-print sticky top-20 z-20">
+                <h3 class="font-bold text-sm text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-paper-plane text-brand-400"></i> Acciones & Envío Directo
+                </h3>
+                <p class="text-xs text-slate-400">Selecciona el canal por el cual deseas notificar a la jefatura y al equipo:</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                    <!-- Botón Enviar Correo Directo -->
+                    <button onclick="sendMailto()" class="w-full py-2.5 px-3 bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-lg text-xs flex items-center justify-center gap-2 transition shadow-sm">
+                        <i class="fa-solid fa-envelope text-base"></i> Enviar por Email
+                    </button>
+
+                    <!-- Botón Copiar para WhatsApp / Teams -->
+                    <button onclick="copyFormattedText()" class="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium rounded-lg text-xs flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-copy text-base text-green-400"></i> Copiar texto (Chat)
+                    </button>
+
+                    <!-- Botón Descargar PDF / Imprimir -->
+                    <button onclick="window.print()" class="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium rounded-lg text-xs flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-file-pdf text-base text-red-400"></i> Descargar PDF / Imprimir
+                    </button>
+
+                    <!-- Botón Exportar CSV -->
+                    <button onclick="exportCSV()" class="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium rounded-lg text-xs flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-file-csv text-base text-amber-400"></i> Exportar CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Vista Previa Documento (Informe Ejecutivo) -->
+            <div id="printArea" class="bg-white rounded-xl shadow-md border border-slate-200 p-6 print-container space-y-6 text-slate-800">
+                
+                <!-- Encabezado del Documento -->
+                <div class="border-b-2 border-slate-900 pb-4 flex justify-between items-start">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 tracking-tight">INFORME DE CAMBIO DE TURNO</h2>
+                        <p class="text-xs text-slate-500 font-medium">Mantenimiento Industrial & Servicios de Planta</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-block px-2.5 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono font-bold" id="prevShiftBadge">MAÑANA</span>
+                        <p class="text-xs text-slate-500 mt-1" id="prevDate">00/00/0000</p>
+                    </div>
+                </div>
+
+                <!-- Metadatos Básicos -->
+                <div class="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div>
+                        <span class="text-slate-400 block font-medium">Técnico / Operador:</span>
+                        <span id="prevTech" class="font-bold text-slate-800">--</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block font-medium">Planta / Línea:</span>
+                        <span id="prevArea" class="font-bold text-slate-800">--</span>
+                    </div>
+                </div>
+
+                <!-- Resumen Operativo -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Resumen del Turno</h4>
+                    <p id="prevSummary" class="text-xs text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200 italic min-h-[40px]">
+                        Sin resumen provisto.
+                    </p>
+                </div>
+
+                <!-- Tabla de Intervenciones -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Intervenciones y Novedades</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-800 text-white">
+                                    <th class="p-2 rounded-tl">Equipo</th>
+                                    <th class="p-2">Tipo</th>
+                                    <th class="p-2">Estado</th>
+                                    <th class="p-2 rounded-tr">Paro</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prevInterventionsTable" class="divide-y divide-slate-200">
+                                <tr>
+                                    <td colspan="4" class="p-3 text-center text-slate-400 italic">No se han ingresado intervenciones.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Indicadores Consumo -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Consumo de Servicios</h4>
+                    <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+                            <span class="block text-slate-400 text-[10px]">Energía</span>
+                            <span id="prevPower" class="font-bold font-mono">0 kWh</span>
+                        </div>
+                        <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+                            <span class="block text-slate-400 text-[10px]">Agua</span>
+                            <span id="prevWater" class="font-bold font-mono">0 m³</span>
+                        </div>
+                        <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+                            <span class="block text-slate-400 text-[10px]">Vapor / Gas</span>
+                            <span id="prevSteam" class="font-bold font-mono">0 PSI</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pendientes -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Pendientes para Siguiente Turno</h4>
+                    <ul id="prevPendingList" class="text-xs list-disc pl-4 space-y-1 text-slate-700">
+                        <li class="italic text-slate-400">Sin tareas pendientes.</li>
+                    </ul>
+                </div>
+
+                <!-- Firma / Pie de Informe -->
+                <div class="pt-8 border-t border-slate-200 flex justify-between items-end text-[10px] text-slate-400">
+                    <div>
+                        <p class="font-bold text-slate-600" id="prevTechSign">Firma Técnico Responsable</p>
+                        <p>PlantaIndustrial Pro - Mantenimiento</p>
+                    </div>
+                    <div class="text-right">
+                        <p>Generado automáticamente</p>
+                        <p id="prevGeneratedTime">--:--</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-4 text-center border-t border-slate-800 no-print mt-auto">
+        <p>© 2026 PlantaIndustrial Pro - Sistema de Control de Mantenimiento Operacional.</p>
+    </footer>
+
+    <!-- Lógica JavaScript Integrada -->
+    <script>
+        // Estado Global de la Aplicación
+        const appState = {
+            interventions: [],
+            pendingTasks: []
+        };
+
+        // Inicialización
+        window.addEventListener('DOMContentLoaded', () => {
+            // Establecer fecha de hoy por defecto
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('reportDate').value = today;
+
+            // Iniciar Reloj
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            // Event Listeners para actualización en tiempo real de vista previa
+            const inputsToListen = ['techName', 'shiftType', 'plantArea', 'reportDate', 'shiftSummary', 'meterPower', 'meterWater', 'meterSteam'];
+            inputsToListen.forEach(id => {
+                document.getElementById(id).addEventListener('input', updatePreview);
+            });
+
+            updatePreview();
+        });
+
+        // Reloj en vivo
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('liveClock').innerText = timeStr;
+            document.getElementById('prevGeneratedTime').innerText = `Fecha de emisión: ${now.toLocaleDateString()} ${timeStr}`;
+        }
+
+        // Agregar Intervención
+        function addIntervention() {
+            const equipment = document.getElementById('itemEquipment').value.trim();
+            const type = document.getElementById('itemType').value;
+            const status = document.getElementById('itemStatus').value;
+            const order = document.getElementById('itemOrder').value.trim();
+            const downtime = parseFloat(document.getElementById('itemDowntime').value) || 0;
+            const desc = document.getElementById('itemDesc').value.trim();
+
+            if (!equipment) {
+                showToast('Por favor ingresa el nombre del equipo o máquina.', 'error');
+                return;
+            }
+
+            const newIntervention = {
+                id: Date.now(),
+                equipment,
+                type,
+                status,
+                order: order || 'N/A',
+                downtime,
+                desc: desc || 'Sin detalles adicionales.'
+            };
+
+            appState.interventions.push(newIntervention);
+
+            // Limpiar campos
+            document.getElementById('itemEquipment').value = '';
+            document.getElementById('itemOrder').value = '';
+            document.getElementById('itemDowntime').value = '';
+            document.getElementById('itemDesc').value = '';
+
+            renderInterventions();
+            updatePreview();
+            showToast('Intervención registrada correctamente.');
+        }
+
+        // Eliminar Intervención
+        function removeIntervention(id) {
+            appState.interventions = appState.interventions.filter(item => item.id !== id);
+            renderInterventions();
+            updatePreview();
+            showToast('Intervención eliminada.', 'info');
+        }
+
+        // Renderizar Lista de Intervenciones en Formulario
+        function renderInterventions() {
+            const listEl = document.getElementById('interventionsList');
+            const counterEl = document.getElementById('interventionCounter');
+            
+            counterEl.innerText = `${appState.interventions.length} Registradas`;
+
+            if (appState.interventions.length === 0) {
+                listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4 italic border border-dashed rounded-lg">No hay intervenciones registradas. Utiliza el formulario superior para añadir una.</p>`;
+                calculateTotalDowntime();
+                return;
+            }
+
+            listEl.innerHTML = appState.interventions.map(item => {
+                let badgeColor = 'bg-green-100 text-green-800 border-green-300';
+                if (item.status === 'En Pruebas') badgeColor = 'bg-amber-100 text-amber-800 border-amber-300';
+                if (item.status === 'Detenido') badgeColor = 'bg-red-100 text-red-800 border-red-300';
+
+                return `
+                    <div class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-start gap-2">
+                        <div class="space-y-1 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-sm text-slate-800">${escapeHtml(item.equipment)}</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badgeColor}">${item.status}</span>
+                                <span class="text-xs text-slate-500 font-mono">OT: ${escapeHtml(item.order)}</span>
+                            </div>
+                            <p class="text-xs text-slate-600">${escapeHtml(item.desc)}</p>
+                            <div class="text-[11px] text-slate-400 font-medium">
+                                <span>Tipo: ${item.type}</span> | <span>Paro: ${item.downtime} hrs</span>
+                            </div>
+                        </div>
+                        <button onclick="removeIntervention(${item.id})" class="text-slate-400 hover:text-red-500 p-1 text-sm">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            calculateTotalDowntime();
+        }
+
+        // Calcular Tiempo Total de Paro
+        function calculateTotalDowntime() {
+            const total = appState.interventions.reduce((sum, item) => sum + (item.downtime || 0), 0);
+            document.getElementById('meterDowntimeTotal').value = total.toFixed(1);
+        }
+
+        // Agregar Tarea Pendiente
+        function addPendingTask() {
+            const input = document.getElementById('pendingInput');
+            const taskText = input.value.trim();
+
+            if (!taskText) return;
+
+            appState.pendingTasks.push({
+                id: Date.now(),
+                text: taskText
+            });
+
+            input.value = '';
+            renderPendingTasks();
+            updatePreview();
+        }
+
+        // Eliminar Tarea Pendiente
+        function removePendingTask(id) {
+            appState.pendingTasks = appState.pendingTasks.filter(t => t.id !== id);
+            renderPendingTasks();
+            updatePreview();
+        }
+
+        // Renderizar Lista de Pendientes
+        function renderPendingTasks() {
+            const listEl = document.getElementById('pendingTasksList');
+
+            if (appState.pendingTasks.length === 0) {
+                listEl.innerHTML = `<li class="text-xs text-slate-400 text-center py-3 italic border border-dashed rounded-lg">Sin tareas pendientes registradas para el turno entrante.</li>`;
+                return;
+            }
+
+            listEl.innerHTML = appState.pendingTasks.map(t => `
+                <li class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-200 text-xs">
+                    <span class="text-slate-700 font-medium flex items-center gap-2">
+                        <i class="fa-regular fa-square-check text-slate-400"></i> ${escapeHtml(t.text)}
+                    </span>
+                    <button onclick="removePendingTask(${t.id})" class="text-slate-400 hover:text-red-500 p-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        // Actualizar la Vista Previa (Documento)
+        function updatePreview() {
+            const tech = document.getElementById('techName').value || 'Sin definir';
+            const shift = document.getElementById('shiftType').value;
+            const area = document.getElementById('plantArea').value;
+            const date = document.getElementById('reportDate').value;
+            const summary = document.getElementById('shiftSummary').value;
+
+            document.getElementById('prevTech').innerText = tech;
+            document.getElementById('prevTechSign').innerText = tech;
+            document.getElementById('prevShiftBadge').innerText = shift.split(' ')[0].toUpperCase();
+            document.getElementById('prevArea').innerText = area;
+            document.getElementById('prevDate').innerText = date ? new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '--';
+            document.getElementById('prevSummary').innerText = summary || 'Sin novedades destacadas en el turno.';
+
+            // Tabla Intervenciones Vista Previa
+            const prevTable = document.getElementById('prevInterventionsTable');
+            if (appState.interventions.length === 0) {
+                prevTable.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-slate-400 italic">No se han registrado intervenciones durante el turno.</td></tr>`;
+            } else {
+                prevTable.innerHTML = appState.interventions.map(item => {
+                    let badgeClass = 'text-green-700 bg-green-50 font-bold';
+                    if (item.status === 'En Pruebas') badgeClass = 'text-amber-700 bg-amber-50 font-bold';
+                    if (item.status === 'Detenido') badgeClass = 'text-red-700 bg-red-50 font-bold';
+
+                    return `
+                        <tr>
+                            <td class="p-2 border-b border-slate-100 font-medium">${escapeHtml(item.equipment)}</td>
+                            <td class="p-2 border-b border-slate-100 text-slate-500">${item.type.split(' ')[0]}</td>
+                            <td class="p-2 border-b border-slate-100"><span class="px-1.5 py-0.5 rounded ${badgeClass}">${item.status}</span></td>
+                            <td class="p-2 border-b border-slate-100 font-mono">${item.downtime}h</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // Lecturas Servicios
+            document.getElementById('prevPower').innerText = `${document.getElementById('meterPower').value || '0'} kWh`;
+            document.getElementById('prevWater').innerText = `${document.getElementById('meterWater').value || '0'} m³`;
+            document.getElementById('prevSteam').innerText = `${document.getElementById('meterSteam').value || '0'} PSI`;
+
+            // Pendientes Vista Previa
+            const prevPendingList = document.getElementById('prevPendingList');
+            if (appState.pendingTasks.length === 0) {
+                prevPendingList.innerHTML = `<li class="italic text-slate-400">Sin tareas pendientes.</li>`;
+            } else {
+                prevPendingList.innerHTML = appState.pendingTasks.map(t => `<li>${escapeHtml(t.text)}</li>`).join('');
+            }
+        }
+
+        // Construir Texto Formateado para WhatsApp / Teams
+        function buildFormattedString() {
+            const tech = document.getElementById('techName').value || 'Técnico';
+            const shift = document.getElementById('shiftType').value;
+            const area = document.getElementById('plantArea').value;
+            const date = document.getElementById('reportDate').value;
+            const summary = document.getElementById('shiftSummary').value || 'Sin resumen registrado.';
+
+            let text = `📋 *REPORTE CAMBIO DE TURNO - MANTENIMIENTO*\n`;
+            text += `------------------------------------\n`;
+            text += `👤 *Técnico:* ${tech}\n`;
+            text += `🕒 *Turno:* ${shift}\n`;
+            text += `🏭 *Planta/Área:* ${area}\n`;
+            text += `📅 *Fecha:* ${date}\n\n`;
+
+            text += `📝 *RESUMEN DEL TURNO:*\n${summary}\n\n`;
+
+            text += `🛠️ *INTERVENCIONES / NOVEDADES (${appState.interventions.length}):*\n`;
+            if (appState.interventions.length === 0) {
+                text += `- Sin intervenciones reportadas.\n`;
+            } else {
+                appState.interventions.forEach((item, idx) => {
+                    text += `${idx + 1}. *${item.equipment}* [${item.status}]\n`;
+                    text += `   • Tipo: ${item.type} | OT: ${item.order} | Paro: ${item.downtime}h\n`;
+                    text += `   • Obs: ${item.desc}\n`;
+                });
+            }
+
+            text += `\n⚡ *SERVICIOS Y CONSUMOS:*\n`;
+            text += `• Energía: ${document.getElementById('meterPower').value || '0'} kWh\n`;
+            text += `• Agua: ${document.getElementById('meterWater').value || '0'} m³\n`;
+            text += `• Gas/Vapor: ${document.getElementById('meterSteam').value || '0'} PSI\n`;
+
+            text += `\n📌 *PENDIENTES PARA EL SIGUIENTE TURNO:*\n`;
+            if (appState.pendingTasks.length === 0) {
+                text += `- Ningún pendiente registrado.\n`;
+            } else {
+                appState.pendingTasks.forEach(t => {
+                    text += `• ${t.text}\n`;
+                });
+            }
+
+            return text;
+        }
+
+        // Copiar Texto al Portapapeles
+        function copyFormattedText() {
+            const text = buildFormattedString();
+            
+            // Fallback usando textarea para compatibilidad en iframe
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            showToast('¡Reporte copiado al portapapeles para WhatsApp/Teams!');
+        }
+
+        // Generar Enlace mailto: para Envío de Correo
+        function sendMailto() {
+            const jefe = document.getElementById('cfgEmailJefe').value;
+            const gerencia = document.getElementById('cfgEmailGerencia').value;
+            const supervisores = document.getElementById('cfgEmailSupervisores').value;
+
+            const recipients = [jefe, gerencia, supervisores].filter(e => e.trim() !== '').join(',');
+            
+            const area = document.getElementById('plantArea').value;
+            const shift = document.getElementById('shiftType').value;
+            const date = document.getElementById('reportDate').value;
+
+            const subject = encodeURIComponent(`[Reporte Turno] ${area} - ${shift} (${date})`);
+            const body = encodeURIComponent(buildFormattedString());
+
+            window.location.href = `mailto:${recipients}?subject=${subject}&body=${body}`;
+            showToast('Abriendo cliente de correo predeterminado...');
+        }
+
+        // Exportar a CSV
+        function exportCSV() {
+            if (appState.interventions.length === 0) {
+                showToast('No hay intervenciones para exportar a CSV.', 'error');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Fecha,Turno,Planta,Tecnico,Equipo,Tipo,Estado,Orden,HorasParo,Observaciones\n";
+
+            const date = document.getElementById('reportDate').value;
+            const shift = document.getElementById('shiftType').value;
+            const area = document.getElementById('plantArea').value;
+            const tech = document.getElementById('techName').value;
+
+            appState.interventions.forEach(item => {
+                const row = [
+                    `"${date}"`,
+                    `"${shift}"`,
+                    `"${area}"`,
+                    `"${tech}"`,
+                    `"${item.equipment}"`,
+                    `"${item.type}"`,
+                    `"${item.status}"`,
+                    `"${item.order}"`,
+                    `"${item.downtime}"`,
+                    `"${item.desc.replace(/"/g, '""')}"`
+                ].join(",");
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Reporte_Mantenimiento_${date}_${shift.split(' ')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('Archivo CSV descargado.');
+        }
+
+        // Mostrar Notificación Toast
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = message;
+
+            if (type === 'error') {
+                toastIcon.className = 'fa-solid fa-triangle-exclamation text-red-400 text-lg';
+            } else if (type === 'info') {
+                toastIcon.className = 'fa-solid fa-circle-info text-blue-400 text-lg';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-check text-green-400 text-lg';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+
+        // Escape de caracteres HTML para seguridad
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
